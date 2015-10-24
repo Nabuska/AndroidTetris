@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="block_colors">
+        <item>@color/block_red</item>
+        <item>@color/block_cyan</item>
+        <item>@color/block_blue</item>
+        <item>@color/block_orange</item>
+        <item>@color/block_yellow</item>
+        <item>@color/block_green</item>
+        <item>@color/block_purple</item>
+        <item>@color/block_shadow</item>
+    </array>
+</resources>
