@@ -52,8 +52,10 @@ public class TetrisController {
 
     protected static void performHardDrop() {
         vibrate(new long[]{50,10,50});
-        while(evaluator.squaresHaveRoomBelow(playersBlock.squares)){
-            manipulator.dropSquaresByOne(playersBlock.squares);
+        synchronized (grid) {
+            while (evaluator.squaresHaveRoomBelow(playersBlock.squares)) {
+                manipulator.dropSquaresByOne(playersBlock.squares);
+            }
         }
         onMoveDown();
     }
@@ -65,21 +67,27 @@ public class TetrisController {
 
     protected static void rotateBlock(final int ROTATE_DIRECTION){
         vibrate(new long[]{50});
-        Map<Square, Point> offsetSquares = playersBlock.squareOffSetsOnRotate(ROTATE_DIRECTION);
-        if(evaluator.isSafeOffset(offsetSquares)){
-            manipulator.removeGridValueAtSquarePoints(evaluator.getBlockShadow(playersBlock));
-            playersBlock.updateOrientation(ROTATE_DIRECTION);
-            manipulator.offsetSquares(offsetSquares);
-            manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
+        synchronized (grid) {
+            Map<Square, Point> offsetSquares = playersBlock.squareOffSetsOnRotate(ROTATE_DIRECTION);
+            if (evaluator.isSafeOffset(offsetSquares)) {
+                manipulator.removeGridValueAtSquarePoints(evaluator.getBlockShadow(playersBlock));
+                playersBlock.updateOrientation(ROTATE_DIRECTION);
+                manipulator.offsetSquares(offsetSquares);
+                manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
+            }
+            grid.notifyAll();
         }
     }
 
     protected static void moveBlockHorizontally(final int MOVE_DIRECTION){
         vibrate(new long[]{50});
-        if(evaluator.blockHasRoomAtHorizontal(playersBlock, MOVE_DIRECTION)){
-            manipulator.removeGridValueAtSquarePoints(evaluator.getBlockShadow(playersBlock));
-            manipulator.moveBlockHorizontally(playersBlock, MOVE_DIRECTION);
-            manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
+        synchronized (grid) {
+            if (evaluator.blockHasRoomAtHorizontal(playersBlock, MOVE_DIRECTION)) {
+                manipulator.removeGridValueAtSquarePoints(evaluator.getBlockShadow(playersBlock));
+                manipulator.moveBlockHorizontally(playersBlock, MOVE_DIRECTION);
+                manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
+            }
+            grid.notifyAll();
         }
     }
 
@@ -93,21 +101,27 @@ public class TetrisController {
 
     private static boolean onMoveDown(){
         boolean gameContinues = true;
-        if (!evaluator.squaresHaveRoomBelow(playersBlock.squares)) {
-            try{Thread.sleep(100);}catch (InterruptedException e){}
-            vibrate(new long[]{100});
-            manipulator.removeGridValueAtSquarePoints(evaluator.getBlockShadow(playersBlock));
-            playersBlock = Block.randomBlock();
-            deleteAndDropFullRows();
-            if (evaluator.squareLocationsEmpty(playersBlock.squares)) {
-                insertPlayerBlockToGrid();
-                manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
+        synchronized (grid) {
+            if (!evaluator.squaresHaveRoomBelow(playersBlock.squares)) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                }
+                vibrate(new long[]{100});
+                manipulator.removeGridValueAtSquarePoints(evaluator.getBlockShadow(playersBlock));
+                playersBlock = Block.randomBlock();
+                deleteAndDropFullRows();
+                if (evaluator.squareLocationsEmpty(playersBlock.squares)) {
+                    insertPlayerBlockToGrid();
+                    manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
+                } else {
+                    gameContinues = false;
+                }
             } else {
-                gameContinues = false;
+                deleteAndDropFullRows();
+                manipulator.dropSquaresByOne(playersBlock.squares);
             }
-        } else {
-            deleteAndDropFullRows();
-            manipulator.dropSquaresByOne(playersBlock.squares);
+            grid.notifyAll();
         }
         return gameContinues;
     }
@@ -124,17 +138,24 @@ public class TetrisController {
                 floatingSquares.removeAll(playersBlock.squares);
             }
             vibrate(new long[]{100, 50, 100});
+            grid.notifyAll();
+            //notifyAll is called so UI Thread can draws the missing row(s)
+            try{grid.wait();}catch (InterruptedException e){}//todo current thread wait?
+            //UI Thread has called notifyAll and execution continues
             try{Thread.sleep(400);}catch (InterruptedException e){}
             fullRows = Stream.ofRange(0, ROWS).filter(i -> evaluator.isFilledRow(i)).collect(Collectors.toSet());
         }
     }
 
     private static void insertPlayerBlockToGrid(){
-        manipulator.addSquaresToGrid(playersBlock.squares);
-        if (evaluator.squaresHaveRoomBelow(playersBlock.squares))
-            manipulator.dropSquaresByOne(playersBlock.squares);
-        if (evaluator.squaresHaveRoomBelow(playersBlock.squares))
-            manipulator.dropSquaresByOne(playersBlock.squares);
+        synchronized (grid) {
+            manipulator.addSquaresToGrid(playersBlock.squares);
+            if (evaluator.squaresHaveRoomBelow(playersBlock.squares))
+                manipulator.dropSquaresByOne(playersBlock.squares);
+            if (evaluator.squaresHaveRoomBelow(playersBlock.squares))
+                manipulator.dropSquaresByOne(playersBlock.squares);
+            grid.notifyAll();
+        }
     }
 
     private static void vibrate(long []pattern){

@@ -14,7 +14,7 @@ import com.annimon.stream.function.Supplier;
 
 public class UIActionExecutor extends Thread {
 
-    private long sleepTime = 700;
+    private long sleepTime = 400;
     private long alarm;
     private boolean paused = false;
     private Supplier<Boolean> recurringTask;

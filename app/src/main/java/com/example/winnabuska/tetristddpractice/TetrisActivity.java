@@ -68,16 +68,19 @@ public class TetrisActivity extends AppCompatActivity {
         @Override
         protected void onDraw(Canvas canvas) {
             int color;
-            for(int y = TetrisController.FIRST_VISIBLE_ROW; y<= TetrisController.LAST_VISIBLE_ROW; y++){
-                for(int x = 0; x< TetrisController.COLUMNS; x++){
-                    Optional<Square> square = TetrisController.grid[y][x];
-                    if(square.isPresent())
-                        color = BLOCK_COLORS[square.get().COLOR];
-                    else
-                        color = GRID_BACKGROUND_COLOR;
-                    paint.setColor(color);
-                    canvas.drawRect(getRectangle(x,y), paint);
+            synchronized (TetrisController.grid) {
+                for (int y = TetrisController.FIRST_VISIBLE_ROW; y <= TetrisController.LAST_VISIBLE_ROW; y++) {
+                    for (int x = 0; x < TetrisController.COLUMNS; x++) {
+                        Optional<Square> square = TetrisController.grid[y][x];
+                        if (square.isPresent())
+                            color = BLOCK_COLORS[square.get().COLOR];
+                        else
+                            color = GRID_BACKGROUND_COLOR;
+                        paint.setColor(color);
+                        canvas.drawRect(getRectangle(x, y), paint);
+                    }
                 }
+                TetrisController.grid.notifyAll();
             }
             try{Thread.sleep(30);}catch (InterruptedException e){}
             invalidate();
@@ -123,11 +126,11 @@ public class TetrisActivity extends AppCompatActivity {
                 touchXDifference = ((first, second) -> (first.getX()-second.getX()));
 
                 swipeFromLeftToRight = e -> lastEvent.isPresent() && e.getAction() != MotionEvent.ACTION_DOWN &&
-                        touchXDifference.apply(lastEvent.get(), e)<-screenHeight/10.0;
+                        touchXDifference.apply(lastEvent.get(), e)<-screenWidth/8.0;
                 swipeFromRightToLeft = e -> lastEvent.isPresent() && e.getAction() != MotionEvent.ACTION_DOWN &&
-                        touchXDifference.apply(lastEvent.get(), e)>screenHeight/10.0;
+                        touchXDifference.apply(lastEvent.get(), e)>screenWidth/8.0;
                 swipeFromUpToDown = e -> lastEvent.isPresent() && e.getAction() == MotionEvent.ACTION_MOVE &&
-                        lastEvent.get().getY()-e.getY()< -screenHeight/10.0;
+                        lastEvent.get().getY()-e.getY()< -screenWidth/8.0;
 
                 clickOnRightUpperPartOfScreen = e -> e.getAction()==MotionEvent.ACTION_UP && touchOnRightSideOfScreen.test(e) &&
                         touchOnUpperPartOfScreen.test(e) && lastEvent.isPresent() && lastEvent.get().getAction() == MotionEvent.ACTION_DOWN &&

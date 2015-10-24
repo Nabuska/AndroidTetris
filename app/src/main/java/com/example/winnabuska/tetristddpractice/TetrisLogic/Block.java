@@ -210,7 +210,7 @@ public class Block {
         Square b2 = new Square(new Point(3,1), COLOR);
         Square b3 = new Square(new Point(4,1), COLOR);
         Square b4 = new Square(new Point(5,1), COLOR);
-        b1.attachTo(b2, b3).attachTo(b4);
+        b1.attachTo(b2).attachTo(b3).attachTo(b4);
         return Arrays.asList(b1,b2,b3,b4);
     }
 
@@ -243,11 +243,11 @@ public class Block {
 
     private List<Square> createTBlock() {
         List<Square> squares = new ArrayList<>();
-        squares.add(new Square(new Point(3,1), COLOR));
-        squares.add(new Square(new Point(4,1), COLOR));
-        squares.add(new Square(new Point(4,0), COLOR));
-        squares.add(new Square(new Point(5,1), COLOR));
-        squares.get(0).attachTo(squares.get(1)).attachTo(squares.get(2), squares.get(3));
+        Square b1 = new Square(new Point(3,1), COLOR);
+        Square b2 = new Square(new Point(4,1), COLOR);
+        Square b3 = new Square(new Point(4,0), COLOR);
+        Square b4 = new Square(new Point(5,1), COLOR);
+        b1.attachTo(b2).attachTo(b3,b4);
         return squares;
     }
 
