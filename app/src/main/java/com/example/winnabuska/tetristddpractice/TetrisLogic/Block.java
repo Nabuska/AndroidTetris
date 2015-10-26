@@ -242,13 +242,12 @@ public class Block {
     }
 
     private List<Square> createTBlock() {
-        List<Square> squares = new ArrayList<>();
         Square b1 = new Square(new Point(3,1), COLOR);
         Square b2 = new Square(new Point(4,1), COLOR);
         Square b3 = new Square(new Point(4,0), COLOR);
         Square b4 = new Square(new Point(5,1), COLOR);
         b1.attachTo(b2).attachTo(b3,b4);
-        return squares;
+        return Arrays.asList(b1,b2,b3,b4);
     }
 
     private List<Square> createZBlock() {

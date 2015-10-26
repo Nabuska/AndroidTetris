@@ -1,6 +1,7 @@
 package com.example.winnabuska.tetristddpractice.TetrisLogic;
 
 import android.graphics.Point;
+import android.util.Log;
 
 import com.annimon.stream.Collectors;
 import com.annimon.stream.Optional;
@@ -37,9 +38,11 @@ public class GridSpaceEvaluator {
             pointsUnderSquares = Stream.of(block.squares).map(s -> new Point(s.location.x, s.location.y)).collect(Collectors.toSet());
             Predicate<Point> gridIsOutOfRows = p -> p.y > TetrisController.grid.length - 1;
             Predicate<Point> partOfSameGroup = p -> Stream.of(block.squares).anyMatch(s -> s.location.equals(p.x, p.y));
+            int i = 0;
             while (Stream.of(pointsUnderSquares).noneMatch(p -> gridIsOutOfRows.test(p)) &&
                     Stream.of(pointsUnderSquares).noneMatch(p -> !isEmptyGridPoint.test(p) && !partOfSameGroup.test(p))) {
                 Stream.of(pointsUnderSquares).forEach(p -> p.offset(0, 1));
+                i++;
             }
             Stream.of(pointsUnderSquares).forEach(p -> p.offset(0, -1));
         }
@@ -47,6 +50,13 @@ public class GridSpaceEvaluator {
     }
 
     /* Returns true when in every rows column there is a block that is NOT floating*/
+
+
+    public Set<Integer> getFilledRows(){
+        Set<Square> stableSquares = getAllStableSquares();
+        return Stream.ofRange(0, TetrisController.ROWS).filter(i -> isFilledRow(i)).collect(Collectors.toSet());
+    }
+
     public boolean isFilledRow(int row) {
         Set<Square> stableSquares = getAllStableSquares();
         return Stream.of(TetrisController.grid[row]).allMatch(optS -> optS.isPresent() && !optS.get().isShadowSquare() && stableSquares.contains(optS.get()));
@@ -56,7 +66,7 @@ public class GridSpaceEvaluator {
     public List<Square> getAllFloatingSquares() {
         Set<Square> stableSquares = getAllStableSquares();
         return Stream.of(TetrisController.grid).flatMap(row ->
-                Stream.of(row).filter(s -> s.isPresent() && !stableSquares.contains(s.get())))
+                Stream.of(row).filter(s -> s.isPresent() && !stableSquares.contains(s.get()) && !s.get().isShadowSquare()))
                 .map(optSquare -> ((Optional<Square>) optSquare).get()).collect(Collectors.toList());
     }
 
@@ -127,12 +137,11 @@ public class GridSpaceEvaluator {
     private Set<Square> getBottomBlocks(){
         Set<Square> blockSquares = new HashSet<>();
         for (int x = 0; x < TetrisController.COLUMNS; x++) {
-            int a = x;
             Optional<Square> optSquare = TetrisController.grid[TetrisController.ROWS - 1][x];
-            if (optSquare.isPresent()) {
-                Square b = optSquare.get();
-                if(!blockSquares.contains(b))
-                    blockSquares.addAll(b.getAllSquaresInTheBlock());
+            if (optSquare.isPresent() && !optSquare.get().isShadowSquare()) {
+                Square s = optSquare.get();
+                if(!blockSquares.contains(s))
+                    blockSquares.addAll(s.getAllSquaresInTheBlock());
             }
         }
         return blockSquares;

@@ -128,7 +128,7 @@ public class TetrisActivity extends AppCompatActivity {
                 swipeFromLeftToRight = e -> lastEvent.isPresent() && e.getAction() != MotionEvent.ACTION_DOWN &&
                         touchXDifference.apply(lastEvent.get(), e)<-screenWidth/8.0;
                 swipeFromRightToLeft = e -> lastEvent.isPresent() && e.getAction() != MotionEvent.ACTION_DOWN &&
-                        touchXDifference.apply(lastEvent.get(), e)>screenWidth/8.0;
+                        touchXDifference.apply(lastEvent.get(), e)>+screenWidth/8.0;
                 swipeFromUpToDown = e -> lastEvent.isPresent() && e.getAction() == MotionEvent.ACTION_MOVE &&
                         lastEvent.get().getY()-e.getY()< -screenWidth/8.0;
 

@@ -3,6 +3,7 @@ package com.example.winnabuska.tetristddpractice.Control;
 import com.annimon.stream.Optional;
 import com.annimon.stream.function.Consumer;
 import com.annimon.stream.function.Supplier;
+import com.example.winnabuska.tetristddpractice.TetrisLogic.Square;
 
 /**
  * Created by Joona Enbuska on 24.10.2015.
@@ -19,15 +20,21 @@ public class UIActionExecutor extends Thread {
     private boolean paused = false;
     private Supplier<Boolean> recurringTask;
     private Optional<Consumer<UIActionExecutor>> oneTimeTask;
+    private Optional<Square> [][] grid;
 
     public UIActionExecutor(){
         oneTimeTask = Optional.empty();
         this.recurringTask = () ->  TetrisController.onTick();
         start();
+        grid = TetrisController.grid;
     }
 
+    /*performAction takes a new Consumer as its oneTimeTask if the last oneTimeTask has fully been executed*/
     public synchronized void performAction(Consumer<UIActionExecutor> sideTask){
-        this.oneTimeTask = Optional.of(sideTask);
+        if(!oneTimeTask.isPresent())
+            oneTimeTask = Optional.of(sideTask);
+        else
+            oneTimeTask = Optional.empty();
     }
 
     public void run(){
@@ -46,7 +53,7 @@ public class UIActionExecutor extends Thread {
                     oneTimeTask.get().accept(UIActionExecutor.this);
                     oneTimeTask = Optional.empty();
                 });
-                try{sleep(10);}catch (InterruptedException e){}
+                try{sleep(1);}catch (InterruptedException e){}
             }while (wakeUpTime());
             sleepTime--;
         }

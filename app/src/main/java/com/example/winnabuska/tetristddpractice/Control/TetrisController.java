@@ -2,6 +2,7 @@ package com.example.winnabuska.tetristddpractice.Control;
 
 import android.graphics.Point;
 import android.os.Vibrator;
+import android.util.Log;
 
 import com.annimon.stream.Collectors;
 import com.annimon.stream.Optional;
@@ -11,6 +12,7 @@ import com.example.winnabuska.tetristddpractice.TetrisLogic.GridSquareManipulato
 import com.example.winnabuska.tetristddpractice.TetrisLogic.GridSpaceEvaluator;
 import com.example.winnabuska.tetristddpractice.TetrisLogic.Square;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,22 +49,25 @@ public class TetrisController {
     }
 
     protected static boolean onTick(){
-        return onMoveDown();
+        synchronized (grid) {
+            return onDrop();
+        }
     }
 
     protected static void performHardDrop() {
-        vibrate(new long[]{50,10,50});
+        vibrate(new long[]{50, 10, 50});
         synchronized (grid) {
-            while (evaluator.squaresHaveRoomBelow(playersBlock.squares)) {
-                manipulator.dropSquaresByOne(playersBlock.squares);
-            }
+            hardDropFloatingSquares();
+            onDrop();
+            grid.notifyAll();
         }
-        onMoveDown();
     }
 
     protected static void performSoftDrop() {
         vibrate(new long[]{50});
-        onMoveDown();
+        synchronized (grid) {
+            onDrop();
+        }
     }
 
     protected static void rotateBlock(final int ROTATE_DIRECTION){
@@ -91,6 +96,58 @@ public class TetrisController {
         }
     }
 
+    private static boolean onDrop(){
+        if (!evaluator.squaresHaveRoomBelow(playersBlock.squares)) {
+            return onBlockLanding();
+        } else {
+            manipulator.dropSquaresByOne(playersBlock.squares);
+            return true;
+        }
+    }
+
+    private static boolean onBlockLanding(){
+        boolean gameContinues = true;
+
+        try {Thread.sleep(100);} catch (InterruptedException e) {}
+        vibrate(new long[]{100});
+
+        playersBlock = Block.randomBlock();
+
+        Set<Integer> filledRows;
+        while(!(filledRows = evaluator.getFilledRows()).isEmpty())
+            onFullRowsPresent(filledRows);
+
+        if (evaluator.squareLocationsEmpty(playersBlock.squares)) {
+            insertPlayerBlockToGrid();
+            manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
+        } else
+            gameContinues = false;
+        return gameContinues;
+    }
+
+    private static void onFullRowsPresent(Set<Integer> fullRows){
+        deleteRows(fullRows);
+        vibrate(new long[]{50, 25, 50});
+        enableUIViewUpdate();
+        sleepMS(250);
+        hardDropFloatingSquares();
+        vibrate(new long[]{50, 25, 50});
+        enableUIViewUpdate();
+        sleepMS(250);
+    }
+
+    private static void deleteRows(Set<Integer> fullRows){
+        Stream.of(fullRows).forEach(i -> manipulator.destroyRow(i));
+    }
+
+    private static void hardDropFloatingSquares(){
+        List<Square> floatingSquares = evaluator.getAllFloatingSquares();
+        while (!floatingSquares.isEmpty()) {
+            manipulator.dropSquaresByOne(floatingSquares);
+            floatingSquares = evaluator.getAllFloatingSquares();
+        }
+    }
+
     public static void clearGrid(){
         for (int y = 0; y < ROWS; y++) {
             for (int x = 0; x < COLUMNS; x++) {
@@ -99,69 +156,30 @@ public class TetrisController {
         }
     }
 
-    private static boolean onMoveDown(){
-        boolean gameContinues = true;
-        synchronized (grid) {
-            if (!evaluator.squaresHaveRoomBelow(playersBlock.squares)) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                }
-                vibrate(new long[]{100});
-                manipulator.removeGridValueAtSquarePoints(evaluator.getBlockShadow(playersBlock));
-                playersBlock = Block.randomBlock();
-                deleteAndDropFullRows();
-                if (evaluator.squareLocationsEmpty(playersBlock.squares)) {
-                    insertPlayerBlockToGrid();
-                    manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
-                } else {
-                    gameContinues = false;
-                }
-            } else {
-                deleteAndDropFullRows();
-                manipulator.dropSquaresByOne(playersBlock.squares);
-            }
-            grid.notifyAll();
-        }
-        return gameContinues;
-    }
-
-    private static void deleteAndDropFullRows(){
-        Set<Integer> fullRows = Stream.ofRange(0, ROWS).filter(i -> evaluator.isFilledRow(i)).collect(Collectors.toSet()); //
-        while(!fullRows.isEmpty()){
-            Stream.of(fullRows).forEach(i -> manipulator.destroyRow(i));
-            List<Square> floatingSquares = evaluator.getAllFloatingSquares();
-            floatingSquares.removeAll(playersBlock.squares);
-            while (!floatingSquares.isEmpty()) {
-                manipulator.dropSquaresByOne(floatingSquares);
-                floatingSquares = evaluator.getAllFloatingSquares();
-                floatingSquares.removeAll(playersBlock.squares);
-            }
-            vibrate(new long[]{100, 50, 100});
-            grid.notifyAll();
-            //notifyAll is called so UI Thread can draws the missing row(s)
-            try{grid.wait();}catch (InterruptedException e){}//todo current thread wait?
-            //UI Thread has called notifyAll and execution continues
-            try{Thread.sleep(400);}catch (InterruptedException e){}
-            fullRows = Stream.ofRange(0, ROWS).filter(i -> evaluator.isFilledRow(i)).collect(Collectors.toSet());
-        }
-    }
-
     private static void insertPlayerBlockToGrid(){
-        synchronized (grid) {
-            manipulator.addSquaresToGrid(playersBlock.squares);
-            if (evaluator.squaresHaveRoomBelow(playersBlock.squares))
-                manipulator.dropSquaresByOne(playersBlock.squares);
-            if (evaluator.squaresHaveRoomBelow(playersBlock.squares))
-                manipulator.dropSquaresByOne(playersBlock.squares);
-            grid.notifyAll();
-        }
+        manipulator.addSquaresToGrid(playersBlock.squares);
+        if (evaluator.squaresHaveRoomBelow(playersBlock.squares))
+            manipulator.dropSquaresByOne(playersBlock.squares);
+        if (evaluator.squaresHaveRoomBelow(playersBlock.squares))
+            manipulator.dropSquaresByOne(playersBlock.squares);
+        grid.notifyAll();
     }
 
     private static void vibrate(long []pattern){
         for (int i = 0; i < pattern.length; i++) {
             vibrator.vibrate(pattern[i]);
         }
+    }
+
+    private static void enableUIViewUpdate(){
+        grid.notifyAll();
+        try{grid.wait();//UI thread update starts
+        }catch (InterruptedException e){}
+        //UI Thread has updated and called notifyAll
+    }
+
+    private static void sleepMS(long ms){
+        try{Thread.sleep(ms);}catch (InterruptedException e){}
     }
 
     public static String gridToString(){
@@ -179,4 +197,24 @@ public class TetrisController {
         str+=("############\n");
         return str;
     }
+
+
+
+    /*private static void deleteAndDropFullRows(){
+        Set<Integer> fullRows = Stream.ofRange(0, ROWS).filter(i -> evaluator.isFilledRow(i)).collect(Collectors.toSet());
+        while(!fullRows.isEmpty()){
+            Stream.of(fullRows).forEach(i -> manipulator.destroyRow(i));
+            List<Square> floatingSquares = evaluator.getAllFloatingSquares();
+            while (!floatingSquares.isEmpty()) {
+                manipulator.dropSquaresByOne(floatingSquares);
+                floatingSquares = evaluator.getAllFloatingSquares();
+                Log.i("deleteAndDrop", "2 while end");
+            }
+            vibrate(new long[]{50, 25, 50});
+            grid.notifyAll();
+            try{grid.wait();}catch (InterruptedException e){}
+            try{Thread.sleep(400);}catch (InterruptedException e){}
+            fullRows = Stream.ofRange(0, ROWS).filter(i -> evaluator.isFilledRow(i)).collect(Collectors.toSet());
+        }
+    }*/
 }
