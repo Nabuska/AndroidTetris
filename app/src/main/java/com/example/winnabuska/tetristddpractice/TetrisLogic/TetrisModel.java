@@ -183,24 +183,4 @@ public class TetrisModel extends Observable {
         str+=("############\n");
         return str;
     }
-
-
-
-    /*private static void deleteAndDropFullRows(){
-        Set<Integer> fullRows = Stream.ofRange(0, ROWS).filter(i -> evaluator.isFilledRow(i)).collect(Collectors.toSet());
-        while(!fullRows.isEmpty()){
-            Stream.of(fullRows).forEach(i -> manipulator.destroyRow(i));
-            List<Square> floatingSquares = evaluator.getAllFloatingSquares();
-            while (!floatingSquares.isEmpty()) {
-                manipulator.dropSquaresByOne(floatingSquares);
-                floatingSquares = evaluator.getAllFloatingSquares();
-                Log.i("deleteAndDrop", "2 while end");
-            }
-            vibrate(new long[]{50, 25, 50});
-            grid.notifyAll();
-            try{grid.wait();}catch (InterruptedException e){}
-            try{Thread.sleep(400);}catch (InterruptedException e){}
-            fullRows = Stream.ofRange(0, ROWS).filter(i -> evaluator.isFilledRow(i)).collect(Collectors.toSet());
-        }
-    }*/
 }
