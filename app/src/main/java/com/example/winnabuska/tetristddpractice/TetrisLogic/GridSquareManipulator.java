@@ -5,7 +5,6 @@ import android.graphics.Point;
 import com.annimon.stream.Collectors;
 import com.annimon.stream.Optional;
 import com.annimon.stream.Stream;
-import com.example.winnabuska.tetristddpractice.Control.TetrisController;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -17,10 +16,16 @@ import java.util.Map;
  */
 public class GridSquareManipulator {
 
+    Optional<Square>[][] grid;
+
+    public GridSquareManipulator(Optional<Square>[][] grid){
+        this.grid = grid;
+    }
+
     public void destroyRow(int row){
-        for(int x = 0; x< TetrisController.COLUMNS; x++){
-            TetrisController.grid[row][x].get().detachOneSelf();
-            TetrisController.grid[row][x] = Optional.empty();
+        for(int x = 0; x< TetrisModel.COLUMNS; x++){
+            grid[row][x].get().detachOneSelf();
+            grid[row][x] = Optional.empty();
         }
     }
 
@@ -63,16 +68,16 @@ public class GridSquareManipulator {
     }
 
     private void addSquareToGrid(Square square){
-        TetrisController.grid[square.location.y][square.location.x] = Optional.of(square);
+        grid[square.location.y][square.location.x] = Optional.of(square);
     }
 
     private void removeSquareFromGrid(Square square){
-        Optional<Square> gridContent = TetrisController.grid[square.location.y][square.location.x];
+        Optional<Square> gridContent = grid[square.location.y][square.location.x];
         if(gridContent.isPresent() && gridContent.get()==square)
-            TetrisController.grid[square.location.y][square.location.x] = Optional.empty();
+            grid[square.location.y][square.location.x] = Optional.empty();
     }
 
     private void removeGridValueAtPoint(Point p){
-        TetrisController.grid[p.y][p.x] = Optional.empty();
+        grid[p.y][p.x] = Optional.empty();
     }
 }

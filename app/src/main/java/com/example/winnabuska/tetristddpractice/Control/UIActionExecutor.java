@@ -20,16 +20,16 @@ public class UIActionExecutor extends Thread {
     private boolean paused = false;
     private Supplier<Boolean> recurringTask;
     private Optional<Consumer<UIActionExecutor>> oneTimeTask;
-    private Optional<Square> [][] grid;
+    private TetrisController controller;
 
-    public UIActionExecutor(){
+    public UIActionExecutor(TetrisController controller){
         oneTimeTask = Optional.empty();
-        this.recurringTask = () ->  TetrisController.onTick();
+        this.controller = controller;
+        this.recurringTask = () ->  controller.onTick();
         start();
-        grid = TetrisController.grid;
     }
 
-    /*performAction takes a new Consumer as its oneTimeTask if the last oneTimeTask has fully been executed*/
+    /*performAction takes a new Consumer as its oneTimeTask IF the last oneTimeTask has fully been executed*/
     public synchronized void performAction(Consumer<UIActionExecutor> sideTask){
         if(!oneTimeTask.isPresent())
             oneTimeTask = Optional.of(sideTask);
@@ -69,7 +69,7 @@ public class UIActionExecutor extends Thread {
     }
 
     public void performHorizontalMove(final int MOVE_DIRECTION){
-        TetrisController.moveBlockHorizontally(MOVE_DIRECTION);
+        controller.moveBlockHorizontally(MOVE_DIRECTION);
     }
 
     private boolean wakeUpTime(){
@@ -77,22 +77,20 @@ public class UIActionExecutor extends Thread {
     }
 
     public void performRotate(final int ROTATE_DIRECTION){
-        TetrisController.rotateBlock(ROTATE_DIRECTION);
+        controller.rotateBlock(ROTATE_DIRECTION);
     }
 
     public void performHardDrop(){
-        TetrisController.performHardDrop();
+        controller.performHardDrop();
         postponeAlarm();
     }
 
     public void performSoftDrop(){
-        TetrisController.performSoftDrop();
+        controller.performSoftDrop();
         postponeAlarm();
     }
 
-    /**
-     * postpones alarm time so that the next tick will not happen before a full sleepTime has passed from the given moment
-     */
+    /*postpones alarm time so that the next tick will not happen before a full sleepTime has passed from the given moment*/
     private void postponeAlarm() {
         long now = System.currentTimeMillis();
         alarm += sleepTime - (alarm - now);

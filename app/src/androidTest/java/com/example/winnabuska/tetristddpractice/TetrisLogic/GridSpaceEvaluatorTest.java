@@ -7,7 +7,6 @@ import android.test.AndroidTestCase;
 
 import com.annimon.stream.Optional;
 import com.annimon.stream.Stream;
-import com.example.winnabuska.tetristddpractice.Control.TetrisController;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -24,18 +23,19 @@ public class GridSpaceEvaluatorTest extends AndroidTestCase {
     Optional<Square> [][] grid;
     int bottomY = 21;
     GridSquareManipulator manipulator;
+    TetrisModel tetris;
 
     HashMap<Point, Square> squares;
 
     @Override
     public void setUp() throws Exception {
-        TetrisController.initialize((Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE));
-        TetrisController.clearGrid();
-        grid = TetrisController.grid;
+        tetris = new TetrisModel((Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE), (a1, a2) -> System.out.print(""));
+        tetris.clearGrid();
+        grid = tetris.getGrid();
         squares = new HashMap<>();
-        manipulator = new GridSquareManipulator();
+        manipulator = new GridSquareManipulator(grid);
 
-        evaluator = new GridSpaceEvaluator();
+        evaluator = new GridSpaceEvaluator(grid);
         squares.put(new Point(1,bottomY), new Square(new Point(1, bottomY),         1));
         squares.put(new Point(2,bottomY), new Square(new Point(2,bottomY),          1));
         squares.put(new Point(3,bottomY), new Square(new Point(3,bottomY),          1));
@@ -103,13 +103,13 @@ public class GridSpaceEvaluatorTest extends AndroidTestCase {
 
     public void testGetAllStableBlocks_SquaresOnTopOfHangingSquares()throws Exception{
         Square singleNonStable = new Square(new Point(7,bottomY-2),1);
-        TetrisController.grid[singleNonStable.location.y][singleNonStable.location.x] = Optional.of(singleNonStable);
+        grid[singleNonStable.location.y][singleNonStable.location.x] = Optional.of(singleNonStable);
         Square onTopOfLedgeSquare = new Square(new Point(3,bottomY-3),1);
         Square onTopOfLedgeHangingSquare = new Square(new Point(2,bottomY-3),1);
         onTopOfLedgeSquare.attachTo(onTopOfLedgeHangingSquare);
         //grid[onTopOfLedgeSquare.location.y][onTopOfLedgeSquare.location.x] = Optional.of(onTopOfLedgeSquare);singleNonStable
-        TetrisController.grid[onTopOfLedgeSquare.location.y][onTopOfLedgeSquare.location.x] = Optional.of(onTopOfLedgeSquare);
-        TetrisController.grid[onTopOfLedgeHangingSquare.location.y][onTopOfLedgeHangingSquare.location.x] = Optional.of(onTopOfLedgeHangingSquare);
+        grid[onTopOfLedgeSquare.location.y][onTopOfLedgeSquare.location.x] = Optional.of(onTopOfLedgeSquare);
+        grid[onTopOfLedgeHangingSquare.location.y][onTopOfLedgeHangingSquare.location.x] = Optional.of(onTopOfLedgeHangingSquare);
         squares.get(new Point(6,bottomY-2)).attachTo(squares.get(new Point(5,bottomY-2)),squares.get(new Point(4,bottomY-2)),squares.get(new Point(3,bottomY-2)));
 
         Set<Square> assertStableSquares = new HashSet<>(Arrays.asList(
@@ -131,16 +131,16 @@ public class GridSpaceEvaluatorTest extends AndroidTestCase {
     }
 
     public void testRoomForBlock(){
-        TetrisController.clearGrid();
+        tetris.clearGrid();
         Block b1 = new Block(Block.I);
-        assertTrue(evaluator.squareLocationsEmpty(b1.squares));
-        TetrisController.grid[b1.squares.get(0).location.y][b1.squares.get(0).location.x] = Optional.of(b1.squares.get(0));
-        assertFalse(evaluator.squareLocationsEmpty(b1.squares));
+        assertTrue(evaluator.squareLocationsAreEmpty(b1.squares));
+        grid[b1.squares.get(0).location.y][b1.squares.get(0).location.x] = Optional.of(b1.squares.get(0));
+        assertFalse(evaluator.squareLocationsAreEmpty(b1.squares));
     }
 
     //Note this method relies on GridSquareManipulator methods addBlockToGrid and dropSquaresByOne to work correctly
     public void testBlockHasRoomBelow_OtherBlockBlocking() throws Exception{
-        TetrisController.clearGrid();
+        tetris.clearGrid();
         Block b1 = new Block(Block.I);
         manipulator.addSquaresToGrid(b1.squares);
         manipulator.dropSquaresByOne(b1.squares);

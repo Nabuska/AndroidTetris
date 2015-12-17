@@ -5,7 +5,6 @@ import android.os.Vibrator;
 import android.test.AndroidTestCase;
 
 import com.annimon.stream.Optional;
-import com.example.winnabuska.tetristddpractice.Control.TetrisController;
 
 /**
  * Created by WinNabuska on 19.10.2015.
@@ -16,12 +15,14 @@ public class GridSquareManipulatorTest extends AndroidTestCase {
     Optional<Square>[][] grid;
     String [] emptyGridRows;
     String emptyGridStr;
+    TetrisModel tetris;
 
     @Override
     public void setUp() throws Exception {
-        TetrisController.initialize((Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE));
-        TetrisController.clearGrid();
-        manipulator = new GridSquareManipulator();
+        tetris = new TetrisModel((Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE), (a1, a2) -> System.out.print(""));
+        tetris.clearGrid();
+        grid = tetris.getGrid();
+        manipulator = new GridSquareManipulator(grid);
         emptyGridStr = "#**********#\n"+
                     "#**********#\n"+
                     "#**********#\n"+
@@ -525,7 +526,7 @@ public class GridSquareManipulatorTest extends AndroidTestCase {
                         "#*****"+4+4+"***#\n";
         assertEquals(assertString, getTetrisRowsToString(0, 2));
 
-        TetrisController.clearGrid();
+        tetris.clearGrid();
 
 
     }
@@ -580,7 +581,7 @@ public class GridSquareManipulatorTest extends AndroidTestCase {
     }
 
     private String getTetrisRowsToString(int from, int to){
-        String [] gridStr = TetrisController.gridToString().trim().split("\n");
+        String [] gridStr = tetris.gridToString().trim().split("\n");
         String assertStr = "\n";
         for(int i = from; i<to; i++)
             assertStr+=gridStr[i] + "\n";

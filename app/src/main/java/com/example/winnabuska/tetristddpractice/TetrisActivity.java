@@ -1,5 +1,6 @@
 package com.example.winnabuska.tetristddpractice;
 
+import android.app.AlertDialog;
 import android.content.pm.ActivityInfo;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -9,45 +10,61 @@ import android.graphics.Rect;
 import android.os.Vibrator;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
 import com.annimon.stream.Optional;
 import com.annimon.stream.function.BiFunction;
 import com.annimon.stream.function.Predicate;
-import com.example.winnabuska.tetristddpractice.TetrisLogic.Block;
+import com.example.winnabuska.tetristddpractice.TetrisLogic.TetrisModel;
 import com.example.winnabuska.tetristddpractice.TetrisLogic.Square;
-import com.example.winnabuska.tetristddpractice.Control.UIActionExecutor;
-import com.example.winnabuska.tetristddpractice.Control.TetrisController;
+
+import java.util.Observable;
+import java.util.Observer;
 
 public class TetrisActivity extends AppCompatActivity {
 
-    private UIActionExecutor uiActionExecutor;
+    private TetrisController tetrisController;
+    private AlertDialog playStartDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        TetrisController.initialize((Vibrator) getSystemService(getApplicationContext().VIBRATOR_SERVICE));
-        uiActionExecutor = new UIActionExecutor();
         TetrisUI view = new TetrisUI();
+        TetrisModel model = new TetrisModel((Vibrator) getSystemService(getApplicationContext().VIBRATOR_SERVICE), view);
+        view.setGrid(model.getGrid());
+        tetrisController = new TetrisController(model);
+
         view.invalidate();
         setContentView(view);
+
+        playStartDialog =
+                new AlertDialog.Builder(this)
+                        .setCancelable(false)
+                        .setTitle("Play")
+                        .setPositiveButton("OK",
+                                (dialog, which) -> {
+                                    tetrisController.onActivityResume();
+                                    dialog.dismiss();
+                                })
+                        .create();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        uiActionExecutor.continueExecutions();
+        playStartDialog.show();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        uiActionExecutor.pauseExecutions();
+        tetrisController.onActivityPause();
     }
 
-    private class TetrisUI extends View {
+    private class TetrisUI extends View implements Observer {
         public int screenWidth, screenHeight;
         private final int GRID_GAP = 5;
         private int singleGridSize;
@@ -55,35 +72,36 @@ public class TetrisActivity extends AppCompatActivity {
         private final int GRID_BACKGROUND_COLOR = Color.GRAY;
         private final int [] BLOCK_COLORS = getContext().getResources().getIntArray(R.array.block_colors);
         private int blockSideLength, borderWidth;
+        private Optional<Square>[][]grid;
+        private TetrisOnTouchListener touchListener;
 
 
-        public TetrisUI() {
+        public TetrisUI()  {
             super(getApplicationContext());
             setKeepScreenOn(true);
             setBackgroundColor(Color.BLACK);
             paint = new Paint();
-            setOnTouchListener(new TetrisOnTouchListener());
+            setOnTouchListener(touchListener = new TetrisOnTouchListener());
+        }
+
+        protected void setGrid(Optional<Square>[][]grid){
+            this.grid = grid;
         }
 
         @Override
         protected void onDraw(Canvas canvas) {
             int color;
-            synchronized (TetrisController.grid) {
-                for (int y = TetrisController.FIRST_VISIBLE_ROW; y <= TetrisController.LAST_VISIBLE_ROW; y++) {
-                    for (int x = 0; x < TetrisController.COLUMNS; x++) {
-                        Optional<Square> square = TetrisController.grid[y][x];
-                        if (square.isPresent())
-                            color = BLOCK_COLORS[square.get().COLOR];
-                        else
-                            color = GRID_BACKGROUND_COLOR;
-                        paint.setColor(color);
-                        canvas.drawRect(getRectangle(x, y), paint);
-                    }
+            for (int y = TetrisModel.FIRST_VISIBLE_ROW; y <= TetrisModel.LAST_VISIBLE_ROW; y++) {
+                for (int x = 0; x < TetrisModel.COLUMNS; x++) {
+                    Optional<Square> square = grid[y][x];
+                    if (square.isPresent())
+                        color = BLOCK_COLORS[square.get().COLOR];
+                    else
+                        color = GRID_BACKGROUND_COLOR;
+                    paint.setColor(color);
+                    canvas.drawRect(getRectangle(x, y), paint);
                 }
-                TetrisController.grid.notifyAll();
             }
-            try{Thread.sleep(30);}catch (InterruptedException e){}
-            invalidate();
         }
 
         /*Creates a rectangle that is right size with the players Screen */
@@ -97,26 +115,38 @@ public class TetrisActivity extends AppCompatActivity {
         public void onSizeChanged(int w, int h, int oldW, int oldH) {
             screenWidth = w;
             screenHeight = h;
-            singleGridSize = (int)((1.0*(screenHeight-borderWidth))/ TetrisController.NUMBER_OF_VISIBLEROWS);
+            singleGridSize = (int)((1.0*(screenHeight-borderWidth))/ TetrisModel.NUMBER_OF_VISIBLEROWS);
             borderWidth = (screenWidth - singleGridSize*10)/2;
             blockSideLength = singleGridSize-GRID_GAP*2;
         }
 
-        /*TetrisOnTouchListener gives commands to UIActionExecutor by calling the 'actionExecutor.performAction(Consumer<UIActionExecutor> sideTask)'*/
-        private class TetrisOnTouchListener implements OnTouchListener {
-            //Last event is always either ACTION DOWN or ACTION MOVE but never ACTION UP
-            private Optional<MotionEvent> lastEvent;
-            private BiFunction<MotionEvent, MotionEvent, Float> touchXDifference;
+        @Override
+        public void update(Observable observable, Object gameEnd) {
+            if(null!=gameEnd) {
+                tetrisController.onGameOver();
+                touchListener.disabled=true;
+            }
+            postInvalidate();
+        }
 
-            private Predicate<MotionEvent> doubleTapOnCenterOfTheScreen;
-            private Predicate<MotionEvent> touchOnRightSideOfScreen;
-            private Predicate<MotionEvent> touchOnLeftSideOfScreen;
-            private Predicate<MotionEvent> touchOnUpperPartOfScreen;
-            private Predicate<MotionEvent> clickOnRightUpperPartOfScreen;
-            private Predicate<MotionEvent> clickOnLeftUpperPartOfScreen;
-            private Predicate<MotionEvent> swipeFromLeftToRight;
-            private Predicate<MotionEvent> swipeFromRightToLeft;
-            private Predicate<MotionEvent> swipeFromUpToDown;
+        private class TetrisOnTouchListener implements OnTouchListener {
+            //Last event is always either ACTION DOWN or ACTION MOVE
+
+            private boolean disabled = false;
+
+            private Optional<MotionEvent> lastEvent;
+
+            private final BiFunction<MotionEvent, MotionEvent, Float> touchXDifference;
+
+            private final Predicate<MotionEvent> doubleTapOnCenterOfTheScreen;
+            private final Predicate<MotionEvent> touchOnRightSideOfScreen;
+            private final Predicate<MotionEvent> touchOnLeftSideOfScreen;
+            private final Predicate<MotionEvent> touchOnUpperPartOfScreen;
+            private final Predicate<MotionEvent> tapOnRightUpperPartOfScreen;
+            private final Predicate<MotionEvent> tapOnLeftUpperPartOfScreen;
+            private final Predicate<MotionEvent> swipeFromLeftToRight;
+            private final Predicate<MotionEvent> swipeFromRightToLeft;
+            private final Predicate<MotionEvent> swipeFromUpToDown;
 
             public TetrisOnTouchListener(){
                 lastEvent = Optional.empty();
@@ -132,10 +162,10 @@ public class TetrisActivity extends AppCompatActivity {
                 swipeFromUpToDown = e -> lastEvent.isPresent() && e.getAction() == MotionEvent.ACTION_MOVE &&
                         lastEvent.get().getY()-e.getY()< -screenWidth/8.0;
 
-                clickOnRightUpperPartOfScreen = e -> e.getAction()==MotionEvent.ACTION_UP && touchOnRightSideOfScreen.test(e) &&
+                tapOnRightUpperPartOfScreen = e -> e.getAction()==MotionEvent.ACTION_UP && touchOnRightSideOfScreen.test(e) &&
                         touchOnUpperPartOfScreen.test(e) && lastEvent.isPresent() && lastEvent.get().getAction() == MotionEvent.ACTION_DOWN &&
                         touchOnRightSideOfScreen.test(lastEvent.get());
-                clickOnLeftUpperPartOfScreen = e -> e.getAction()==MotionEvent.ACTION_UP && touchOnLeftSideOfScreen.test(e) &&
+                tapOnLeftUpperPartOfScreen = e -> e.getAction()==MotionEvent.ACTION_UP && touchOnLeftSideOfScreen.test(e) &&
                         touchOnUpperPartOfScreen.test(e) && lastEvent.isPresent() && lastEvent.get().getAction() == MotionEvent.ACTION_DOWN &&
                         touchOnLeftSideOfScreen.test(lastEvent.get());
 
@@ -145,30 +175,34 @@ public class TetrisActivity extends AppCompatActivity {
 
             @Override
             public boolean onTouch(View v, MotionEvent event) {
+
+                if(disabled)
+                    return true;
+
                 if(event.getAction() == MotionEvent.ACTION_DOWN){
-                    if(doubleTapOnCenterOfTheScreen.test(event)){ //double tap
+                    if(doubleTapOnCenterOfTheScreen.test(event)){
                         lastEvent = Optional.empty();
-                        uiActionExecutor.performAction(te -> te.performHardDrop());
+                        tetrisController.onDoubleTapCenter();
                     }
                     else
                         lastEvent = Optional.of(MotionEvent.obtain(event));
                 }
                 else if(swipeFromUpToDown.test(event)){
-                    uiActionExecutor.performAction(te -> te.performSoftDrop());
+                    tetrisController.onSwipeDown();
                     lastEvent = Optional.of(MotionEvent.obtain(event));
                 }
                 else if(swipeFromLeftToRight.test(event)){
-                    uiActionExecutor.performAction(te -> te.performHorizontalMove(Block.MOVE_DIRECTION_RIGHT));
+                    tetrisController.onSwipeRight();
                     lastEvent = Optional.of(MotionEvent.obtain(event));
                 }
                 else if(swipeFromRightToLeft.test(event)){
-                    uiActionExecutor.performAction(te -> te.performHorizontalMove(Block.MOVE_DIRECTION_LEFT));
+                    tetrisController.onSwipeLeft();
                     lastEvent = Optional.of(MotionEvent.obtain(event));
                 }
-                else if(clickOnRightUpperPartOfScreen.test(event))
-                    uiActionExecutor.performAction(te -> te.performRotate(Block.CLOCKWISE));
-                else if(clickOnLeftUpperPartOfScreen.test(event))
-                    uiActionExecutor.performAction(te -> te.performRotate(Block.COUNTERCLOCKWISE));
+                else if(tapOnRightUpperPartOfScreen.test(event))
+                    tetrisController.onTapRight();
+                else if(tapOnLeftUpperPartOfScreen.test(event))
+                    tetrisController.onTapLeft();
 
                 return true;
             }

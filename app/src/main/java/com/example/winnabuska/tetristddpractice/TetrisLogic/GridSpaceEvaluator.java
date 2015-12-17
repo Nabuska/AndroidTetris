@@ -1,13 +1,11 @@
 package com.example.winnabuska.tetristddpractice.TetrisLogic;
 
 import android.graphics.Point;
-import android.util.Log;
 
 import com.annimon.stream.Collectors;
 import com.annimon.stream.Optional;
 import com.annimon.stream.Stream;
 import com.annimon.stream.function.Predicate;
-import com.example.winnabuska.tetristddpractice.Control.TetrisController;
 
 import java.util.HashSet;
 import java.util.List;
@@ -19,24 +17,30 @@ import java.util.Set;
  */
 public class GridSpaceEvaluator {
 
-    private Predicate<Point> isWithinGridRange = p -> p.x>=0 && p.y>=0 && p.y< TetrisController.ROWS && p.x< TetrisController.COLUMNS;
+    private Optional<Square>[][]grid;
+    private Predicate<Point> isWithinGridRange = p -> p.x>=0 && p.y>=0 && p.y< TetrisModel.ROWS && p.x< TetrisModel.COLUMNS;
     private Predicate<Point> isEmptyGridPoint = p -> !gridValue(p).isPresent() ||gridValue(p).get().isShadowSquare();
+
+    public GridSpaceEvaluator(Optional<Square>[][]grid){
+        this.grid = grid;
+    }
 
     /* Takes a Map an checks if all Square can be safely offset by the Point x y values*/
     public boolean isSafeOffset(Map<Square, Point> offset){
         Predicate<Point> isPartOfSameBlock = p -> Stream.of(offset.keySet()).anyMatch(s -> new Point(s.location.x, s.location.y).equals(p));
-        List<Point> positionsAfterRotate = Stream.of(offset).map(e -> new Point(e.getKey().location.x + e.getValue().x, e.getKey().location.y + e.getValue().y)).collect(Collectors.toList());
-        return Stream.of(positionsAfterRotate).allMatch(p -> isWithinGridRange.test(p) && (isEmptyGridPoint.test(p) || isPartOfSameBlock.test(p)));
+        return Stream.of(offset)
+                .map(e -> new Point(e.getKey().location.x + e.getValue().x, e.getKey().location.y + e.getValue().y))
+                .allMatch(p -> isWithinGridRange.test(p) && (isEmptyGridPoint.test(p) || isPartOfSameBlock.test(p)));
     }
 
     /* Returns a set os 'shadow' squares that represent the location where the Block will fall*/
-    public Set<Square> getBlockShadow(Block block){
+    public Set<Square> getBlockShadowSquares(Block block){
         Set<Point> pointsUnderSquares;
         if(!squaresHaveRoomBelow(block.squares))
             pointsUnderSquares = new HashSet<>();
         else {
             pointsUnderSquares = Stream.of(block.squares).map(s -> new Point(s.location.x, s.location.y)).collect(Collectors.toSet());
-            Predicate<Point> gridIsOutOfRows = p -> p.y > TetrisController.grid.length - 1;
+            Predicate<Point> gridIsOutOfRows = p -> p.y > grid.length - 1;
             Predicate<Point> partOfSameGroup = p -> Stream.of(block.squares).anyMatch(s -> s.location.equals(p.x, p.y));
             int i = 0;
             while (Stream.of(pointsUnderSquares).noneMatch(p -> gridIsOutOfRows.test(p)) &&
@@ -49,30 +53,26 @@ public class GridSpaceEvaluator {
         return Stream.of(pointsUnderSquares).map(p -> new Square(p, Square.SHADOW)).collect(Collectors.toSet());
     }
 
-    /* Returns true when in every rows column there is a block that is NOT floating*/
-
-
     public Set<Integer> getFilledRows(){
-        Set<Square> stableSquares = getAllStableSquares();
-        return Stream.ofRange(0, TetrisController.ROWS).filter(i -> isFilledRow(i)).collect(Collectors.toSet());
+        return Stream.ofRange(0, TetrisModel.ROWS).filter(i -> isFilledRow(i)).collect(Collectors.toSet());
     }
 
     public boolean isFilledRow(int row) {
         Set<Square> stableSquares = getAllStableSquares();
-        return Stream.of(TetrisController.grid[row]).allMatch(optS -> optS.isPresent() && !optS.get().isShadowSquare() && stableSquares.contains(optS.get()));
+        return Stream.of(grid[row]).allMatch(optS -> optS.isPresent() && !optS.get().isShadowSquare() && stableSquares.contains(optS.get()));
     }
 
     /*Floating squares are squars that have not landed yet*/
     public List<Square> getAllFloatingSquares() {
         Set<Square> stableSquares = getAllStableSquares();
-        return Stream.of(TetrisController.grid).flatMap(row ->
+        return Stream.of(grid).flatMap(row ->
                 Stream.of(row).filter(s -> s.isPresent() && !stableSquares.contains(s.get()) && !s.get().isShadowSquare()))
                 .map(optSquare -> ((Optional<Square>) optSquare).get()).collect(Collectors.toList());
     }
 
 
     /*Returns a set of squares 'stable' squares. That means that the squares are on the ground or
-    on top of squares that are on the ground or connected to squares fill one of the requirements before.*/
+    on top of squares that are on the ground or connected to squares fills qualifications one of the requirements before.*/
     public Set<Square> getAllStableSquares() {
         Set<Square> prevTopSquares = getBottomBlocks();
         Set<Square> stableBlocks = new HashSet<>(prevTopSquares);
@@ -95,7 +95,7 @@ public class GridSpaceEvaluator {
 
 
     /* Checks if the locations of the squares are not occupied*/
-    public boolean squareLocationsEmpty(List<Square> squares) {
+    public boolean squareLocationsAreEmpty(List<Square> squares) {
         return Stream.of(squares).allMatch(s -> isEmptyGridPoint.test(s.location));
     }
 
@@ -131,13 +131,13 @@ public class GridSpaceEvaluator {
         if(square.location.y==0)
             return Optional.empty();
         else
-            return TetrisController.grid[square.location.y-1][square.location.x];
+            return grid[square.location.y-1][square.location.x];
     }
 
     private Set<Square> getBottomBlocks(){
         Set<Square> blockSquares = new HashSet<>();
-        for (int x = 0; x < TetrisController.COLUMNS; x++) {
-            Optional<Square> optSquare = TetrisController.grid[TetrisController.ROWS - 1][x];
+        for (int x = 0; x < TetrisModel.COLUMNS; x++) {
+            Optional<Square> optSquare = grid[TetrisModel.ROWS - 1][x];
             if (optSquare.isPresent() && !optSquare.get().isShadowSquare()) {
                 Square s = optSquare.get();
                 if(!blockSquares.contains(s))
@@ -148,7 +148,7 @@ public class GridSpaceEvaluator {
     }
 
     private Optional<Square> gridValue(Point p){
-        return TetrisController.grid[p.y][p.x];
+        return grid[p.y][p.x];
     }
 
 }

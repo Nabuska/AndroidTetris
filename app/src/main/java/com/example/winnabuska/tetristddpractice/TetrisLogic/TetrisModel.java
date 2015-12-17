@@ -1,18 +1,11 @@
-package com.example.winnabuska.tetristddpractice.Control;
+package com.example.winnabuska.tetristddpractice.TetrisLogic;
 
 import android.graphics.Point;
 import android.os.Vibrator;
-import android.util.Log;
 
-import com.annimon.stream.Collectors;
 import com.annimon.stream.Optional;
 import com.annimon.stream.Stream;
-import com.example.winnabuska.tetristddpractice.TetrisLogic.Block;
-import com.example.winnabuska.tetristddpractice.TetrisLogic.GridSquareManipulator;
-import com.example.winnabuska.tetristddpractice.TetrisLogic.GridSpaceEvaluator;
-import com.example.winnabuska.tetristddpractice.TetrisLogic.Square;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Observable;
@@ -22,12 +15,12 @@ import java.util.Set;
 /**
  * Created by Joona Enbuska on 19.10.2015.
  *
- * Before TetrisController is used its initialization must be called
- * TetrisController is a Class that that performs changes on the user interfaces 'grid' array
- * TetrisControllers methods 'onTick', 'performSoftDrop' and 'performHardDrop' should not be called from the UI Thread,
- * instead use UIActionExecutor for all basic GameAction method calls
+ * TetrisModel makes changes on the 'grid' array. After the constructor has been called grid should be given to UI view.
+ * Tetris model acts as a 'Observable' and TetrisUI is its observer. Everytime the grid array is changes, TetrisModel calls 'setChanged()'
+ * and 'notifyObservers()'
+ * TetrisModels methods 'onTick', 'performSoftDrop' and 'performHardDrop' should not be called from the UI Thread
  * */
-public class TetrisController extends Observable {
+public class TetrisModel extends Observable {
 
     public static final int ROWS = 22, NUMBER_OF_VISIBLEROWS = 20, COLUMNS = 10, FIRST_VISIBLE_ROW = 2, LAST_VISIBLE_ROW = 21;
     private Optional<Square> [][] grid;
@@ -37,7 +30,7 @@ public class TetrisController extends Observable {
     private GridSpaceEvaluator evaluator;
     private Vibrator vibrator;
 
-    public TetrisController(Vibrator vibrator, Observer observer){
+    public TetrisModel(Vibrator vibrator, Observer observer){
         addObserver(observer);
         this.vibrator = vibrator;
         grid = (Optional<Square>[][]) new Optional[22][10];
@@ -46,53 +39,61 @@ public class TetrisController extends Observable {
         evaluator = new GridSpaceEvaluator(grid);
         playersBlock = Block.randomBlock();
         manipulator.addSquaresToGrid(playersBlock.squares);
-        manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
+        manipulator.addSquaresToGrid(evaluator.getBlockShadowSquares(playersBlock));
+    }
+
+    public void clearGrid(){
+        for (int y = 0; y < ROWS; y++) {
+            for (int x = 0; x < COLUMNS; x++) {
+                grid[y][x] = Optional.empty();
+            }
+        }
     }
 
     public Optional<Square> [][] getGrid(){
         return grid;
     }
 
-    protected boolean onTick(){
-        return onDrop();
+    public void onTick(){
+        onDrop();
     }
 
-    protected void performHardDrop() {
+    public void performHardDrop() {
         vibrate(new long[]{50, 10, 50});
         hardDropFloatingSquares();
         onDrop();
     }
 
-    protected void performSoftDrop() {
+    public void performSoftDrop() {
         vibrate(new long[]{50});
         onDrop();
     }
 
-    protected void rotateBlock(final int ROTATE_DIRECTION){
+    public void rotateBlock(final int ROTATE_DIRECTION){
         vibrate(new long[]{50});
         Map<Square, Point> offsetSquares = playersBlock.squareOffSetsOnRotate(ROTATE_DIRECTION);
         if (evaluator.isSafeOffset(offsetSquares)) {
-            manipulator.removeGridValueAtSquarePoints(evaluator.getBlockShadow(playersBlock));
+            manipulator.removeGridValueAtSquarePoints(evaluator.getBlockShadowSquares(playersBlock));
             playersBlock.updateOrientation(ROTATE_DIRECTION);
             manipulator.offsetSquares(offsetSquares);
-            manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
+            manipulator.addSquaresToGrid(evaluator.getBlockShadowSquares(playersBlock));
             setChanged();
             notifyObservers();
         }
     }
 
-    protected void moveBlockHorizontally(final int MOVE_DIRECTION){
+    public void moveBlockHorizontally(final int MOVE_DIRECTION){
         vibrate(new long[]{50});
         if (evaluator.blockHasRoomAtHorizontal(playersBlock, MOVE_DIRECTION)) {
-            manipulator.removeGridValueAtSquarePoints(evaluator.getBlockShadow(playersBlock));
+            manipulator.removeGridValueAtSquarePoints(evaluator.getBlockShadowSquares(playersBlock));
             manipulator.moveBlockHorizontally(playersBlock, MOVE_DIRECTION);
-            manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
+            manipulator.addSquaresToGrid(evaluator.getBlockShadowSquares(playersBlock));
             setChanged();
             notifyObservers();
         }
     }
 
-    private boolean onDrop(){
+    private void onDrop(){
         boolean gameContinues;
         if (!evaluator.squaresHaveRoomBelow(playersBlock.squares)) {
             gameContinues = onBlockLanding();
@@ -101,8 +102,7 @@ public class TetrisController extends Observable {
             gameContinues = true;
         }
         setChanged();
-        notifyObservers();
-        return gameContinues;
+        notifyObservers(gameContinues?null:true);
     }
 
     private boolean onBlockLanding(){
@@ -117,9 +117,9 @@ public class TetrisController extends Observable {
         while(!(filledRows = evaluator.getFilledRows()).isEmpty())
             onFullRowsPresent(filledRows);
 
-        if (evaluator.squareLocationsEmpty(playersBlock.squares)) {
+        if (evaluator.squareLocationsAreEmpty(playersBlock.squares)) {
             insertPlayerBlockToGrid();
-            manipulator.addSquaresToGrid(evaluator.getBlockShadow(playersBlock));
+            manipulator.addSquaresToGrid(evaluator.getBlockShadowSquares(playersBlock));
         } else
             gameContinues = false;
         return gameContinues;
@@ -153,14 +153,6 @@ public class TetrisController extends Observable {
     private void vibrate(long []pattern){
         for (int i = 0; i < pattern.length; i++) {
             vibrator.vibrate(pattern[i]);
-        }
-    }
-
-    public void clearGrid(){
-        for (int y = 0; y < ROWS; y++) {
-            for (int x = 0; x < COLUMNS; x++) {
-                grid[y][x] = Optional.empty();
-            }
         }
     }
 

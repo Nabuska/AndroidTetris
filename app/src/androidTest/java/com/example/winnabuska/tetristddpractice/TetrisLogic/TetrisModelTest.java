@@ -6,20 +6,19 @@ import android.os.Vibrator;
 import android.test.AndroidTestCase;
 
 import com.annimon.stream.Optional;
-import com.example.winnabuska.tetristddpractice.Control.TetrisController;
 
 /**
  * Created by WinNabuska on 19.10.2015.
  */
-public class TetrisControllerTest extends AndroidTestCase {
+public class TetrisModelTest extends AndroidTestCase {
 
-    TetrisController tetris;
+    TetrisModel tetris;
     String emptyGridStr;
     Optional<Square>[][]grid;
 
     @Override
     public void setUp() throws Exception {
-        tetris = new TetrisController((Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE), (a1, a2) -> System.out.print(""));
+        tetris = new TetrisModel((Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE), (a1, a2) -> System.out.print(""));
         grid = tetris.getGrid();
         tetris.clearGrid();
         emptyGridStr = "\n#**********#\n"+
