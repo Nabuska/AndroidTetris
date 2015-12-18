@@ -25,6 +25,8 @@ import java.util.Observer;
 
 public class TetrisActivity extends AppCompatActivity {
 
+    /**TetrisActivity does not have an XML layout. Instead it uses its inner class TetrisUI as its content view*/
+
     private TetrisController tetrisController;
     private AlertDialog playStartDialog;
 
@@ -63,6 +65,17 @@ public class TetrisActivity extends AppCompatActivity {
         super.onPause();
         tetrisController.onActivityPause();
     }
+
+
+
+
+
+
+
+
+
+
+
 
     private class TetrisUI extends View implements Observer {
         public int screenWidth, screenHeight;
@@ -122,12 +135,25 @@ public class TetrisActivity extends AppCompatActivity {
 
         @Override
         public void update(Observable observable, Object gameEnd) {
+            /*observable sends an boolean object (true) once the game is over*/
             if(null!=gameEnd) {
                 tetrisController.onGameOver();
                 touchListener.disabled=true;
             }
             postInvalidate();
         }
+
+
+
+
+
+
+
+
+
+
+
+        /*on touch listener*/
 
         private class TetrisOnTouchListener implements OnTouchListener {
             //Last event is always either ACTION DOWN or ACTION MOVE

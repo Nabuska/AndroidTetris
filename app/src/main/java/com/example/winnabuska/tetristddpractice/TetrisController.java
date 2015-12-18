@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Created by Joona Enbuska on 24.10.2015.
- * TetrisController performsing all TetrisActionLogic actions outside of UIThread
+ * TetrisController performs all TetrisActionLogic actions outside of UIThread
  **/
 
 public class TetrisController extends Thread {

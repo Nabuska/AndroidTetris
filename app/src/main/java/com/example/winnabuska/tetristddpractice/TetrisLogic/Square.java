@@ -12,8 +12,8 @@ import java.util.Set;
 
 /**
  * Created by WinNabuska on 18.10.2015.
- * In game all squares are part of a block. A square can have non or many squares that it is attached to.
- * Square has a color that is assigned by the Block. Squares are in a 22x10 grid. Squares always know they location in the grid
+ * In game all squares are part of a block. A square can have 0 or many squares that it is attached to.
+ * Square has a color that is assigned by the Block type. Squares are in a 22x10 grid. Squares should always know their location in the grid
  */
 public class Square {
     public final static int COLOR_RED = 0, COLOR_CYAN = 1, COLOR_BLUE = 2, COLOR_ORANGE = 3, COLOR_YELLOR = 4, COLOR_GREEN = 5, COLOR_PURPLE = 6, SHADOW = 7;
@@ -28,6 +28,7 @@ public class Square {
         attachedTo = new HashSet<>();
     }
 
+    /**shadow square is a non solid square that acts in the game only a visual guidance*/
     public boolean isShadowSquare(){
         return COLOR == 7;
     }

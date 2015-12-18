@@ -18,7 +18,8 @@ import java.util.Set;
  * TetrisModel makes changes on the 'grid' array. After the constructor has been called grid should be given to UI view.
  * Tetris model acts as a 'Observable' and TetrisUI is its observer. Everytime the grid array is changes, TetrisModel calls 'setChanged()'
  * and 'notifyObservers()'
- * TetrisModels methods 'onTick', 'performSoftDrop' and 'performHardDrop' should not be called from the UI Thread
+ * All TetrisModels methods except constructor should not be called outside of UI Thread
+ * The game will continue and 'onTick' will be called as long as there is space for a new block to appear after the previous new block has landed in the grid
  * */
 public class TetrisModel extends Observable {
 
@@ -93,6 +94,7 @@ public class TetrisModel extends Observable {
         }
     }
 
+    /**Once onDrop sends Boolean true to observer the game ends*/
     private void onDrop(){
         boolean gameContinues;
         if (!evaluator.squaresHaveRoomBelow(playersBlock.squares)) {
@@ -108,7 +110,7 @@ public class TetrisModel extends Observable {
     private boolean onBlockLanding(){
         boolean gameContinues = true;
 
-        try {Thread.sleep(100);} catch (InterruptedException e) {}
+        sleepMS(100);
         vibrate(new long[]{100});
 
         playersBlock = Block.randomBlock();
@@ -126,7 +128,7 @@ public class TetrisModel extends Observable {
     }
 
     private void onFullRowsPresent(Set<Integer> fullRows){
-        deleteRows(fullRows);
+        Stream.of(fullRows).forEach(rowNumber -> manipulator.destroyRow(rowNumber));
         vibrate(new long[]{50, 25, 50});
         setChanged();
         notifyObservers();
@@ -136,10 +138,6 @@ public class TetrisModel extends Observable {
         setChanged();
         notifyObservers();
         sleepMS(250);
-    }
-
-    private void deleteRows(Set<Integer> fullRows){
-        Stream.of(fullRows).forEach(i -> manipulator.destroyRow(i));
     }
 
     private void hardDropFloatingSquares(){

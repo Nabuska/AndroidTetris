@@ -16,12 +16,22 @@ import java.util.Map;
  */
 public class GridSquareManipulator {
 
+
+    /**GridSquareManipulators job is to
+    1. add Squares to the grid
+    2. move Squares in the grid
+    3. remove Squares from the grid
+    GridSquareManipulator does not check if the move is safe or if the action follow the games roles. That is the job of GridSpaceEvaluator
+    */
+
     Optional<Square>[][] grid;
 
     public GridSquareManipulator(Optional<Square>[][] grid){
         this.grid = grid;
     }
 
+
+    /**removes all the squares on the given row. Every square that is connected to any other square is detached from all the squares that it is connected to*/
     public void destroyRow(int row){
         for(int x = 0; x< TetrisModel.COLUMNS; x++){
             grid[row][x].get().detachOneSelf();
@@ -43,12 +53,14 @@ public class GridSquareManipulator {
         }
     }
 
+    /**offsets the squares (keys) current location by the given point (value) amount*/
     public void offsetSquares(Map<Square, Point> squareOffsets){
         Stream.of(squareOffsets.keySet()).forEach(s -> removeSquareFromGrid(s));
         Stream.of(squareOffsets).forEach(e -> e.getKey().location.offset(e.getValue().x, e.getValue().y));
         Stream.of(squareOffsets.keySet()).forEach(s -> addSquareToGrid(s));
     }
 
+    /**moves all the blocks squares by one left or right, depending witch MOVE_DICETION has been given*/
     public void moveBlockHorizontally(Block block, final int MOVE_DIRECTION){
         Comparator<Square> horizontalIterationOrder;
         if(MOVE_DIRECTION == Block.MOVE_DIRECTION_RIGHT)

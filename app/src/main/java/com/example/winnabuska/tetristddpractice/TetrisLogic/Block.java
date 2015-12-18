@@ -13,17 +13,17 @@ import java.util.List;
 import java.util.Map;
 /**
  * Created by Joona Enbuska on 18.10.2015.
- * A Block is a tetris block that the players controls by rotating, moving horizontally and vertically down.
+ * A Block is a tetris block that the players controls by rotating, moving horizontally and vertically (down).
  * Block is made of a set of squares that are attached to each other. Block is a concept that is used for creating
  * different shaped of square clusters, and it provides info how should the Block Square locations change if the
  * Block would be rotated.
- * After the Block hits the bottom of the grid or other Squares in the grid, the player
+ * After the Block hits the bottom of the grid or other Squares that are on the botton om the grid, the player
  * loses control over the block, and the concept of the particular Block becomes obsolete, but the Squares and
- * they attachments remain unchanged, unless the attachments are implicitly detached.
- * When a block is created, its default horizontal positions if in the middle of the row. If there is no absolute
+ * their attachments remain unchanged, unless the attachments are implicitly detached.
+ * When a block is created, its default horizontal positions ii in the middle of the row. If there is no absolute
  * horizontal center for the Block the position is rounded down (to left).
- * Blocks vertical default position is in the two first rows of the grid.
- * In the case of I Block its vertical default position is on the first row of the grid.
+ * Blocks vertical default position is in the two first rows of the grid (The two upper most rows are not visible to the player).
+ * But in the case of 'I' Block its vertical default position is on the first row of the grid.
  *
  */
 public class Block {
@@ -128,7 +128,7 @@ public class Block {
     }
 
     /**
-     * This method has to be called every time the block is rotated. Otherwise next time the 'squareOffSetsOnRotate'
+     * This method has to be called every time the block is rotated! Otherwise next time the 'squareOffSetsOnRotate'
      * method is called the Point offset info will be inaccurate*/
     public void updateOrientation(final int TURN_DIRECTION){
         currentOrientation = (NUMBER_OF_ORIENTATIONS + TURN_DIRECTION + currentOrientation)%NUMBER_OF_ORIENTATIONS;

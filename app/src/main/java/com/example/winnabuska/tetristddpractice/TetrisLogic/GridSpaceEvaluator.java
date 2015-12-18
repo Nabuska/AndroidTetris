@@ -17,6 +17,7 @@ import java.util.Set;
  */
 public class GridSpaceEvaluator {
 
+
     private Optional<Square>[][]grid;
     private Predicate<Point> isWithinGridRange = p -> p.x>=0 && p.y>=0 && p.y< TetrisModel.ROWS && p.x< TetrisModel.COLUMNS;
     private Predicate<Point> isEmptyGridPoint = p -> !gridValue(p).isPresent() ||gridValue(p).get().isShadowSquare();
@@ -25,7 +26,7 @@ public class GridSpaceEvaluator {
         this.grid = grid;
     }
 
-    /* Takes a Map an checks if all Square can be safely offset by the Point x y values*/
+    /** Takes a Map an checks if all Square can be safely offset by the Point x y values. That mean the stay inside the grid and will not go on top of other squares*/
     public boolean isSafeOffset(Map<Square, Point> offset){
         Predicate<Point> isPartOfSameBlock = p -> Stream.of(offset.keySet()).anyMatch(s -> new Point(s.location.x, s.location.y).equals(p));
         return Stream.of(offset)
@@ -33,7 +34,7 @@ public class GridSpaceEvaluator {
                 .allMatch(p -> isWithinGridRange.test(p) && (isEmptyGridPoint.test(p) || isPartOfSameBlock.test(p)));
     }
 
-    /* Returns a set os 'shadow' squares that represent the location where the Block will fall*/
+    /** Returns a set os 'shadow' squares that represent the location where the Block will fall*/
     public Set<Square> getBlockShadowSquares(Block block){
         Set<Point> pointsUnderSquares;
         if(!squaresHaveRoomBelow(block.squares))
@@ -53,16 +54,12 @@ public class GridSpaceEvaluator {
         return Stream.of(pointsUnderSquares).map(p -> new Square(p, Square.SHADOW)).collect(Collectors.toSet());
     }
 
+    /**returns the number of every row that is full. (All filled rows should be erased and the Squares ontop of the filled rows should fall)*/
     public Set<Integer> getFilledRows(){
         return Stream.ofRange(0, TetrisModel.ROWS).filter(i -> isFilledRow(i)).collect(Collectors.toSet());
     }
 
-    public boolean isFilledRow(int row) {
-        Set<Square> stableSquares = getAllStableSquares();
-        return Stream.of(grid[row]).allMatch(optS -> optS.isPresent() && !optS.get().isShadowSquare() && stableSquares.contains(optS.get()));
-    }
-
-    /*Floating squares are squars that have not landed yet*/
+    /**Floating squares are squars that have not landed yet*/
     public List<Square> getAllFloatingSquares() {
         Set<Square> stableSquares = getAllStableSquares();
         return Stream.of(grid).flatMap(row ->
@@ -71,8 +68,10 @@ public class GridSpaceEvaluator {
     }
 
 
-    /*Returns a set of squares 'stable' squares. That means that the squares are on the ground or
-    on top of squares that are on the ground or connected to squares fills qualifications one of the requirements before.*/
+    /**Returns a set of 'stable' squares. That means that the squares are:
+     1. on the bottom of the grid or
+     2. on top of squares that are on the bottom of the grid or
+     3. connected to a square, that fills one of the requirements mentioned above.*/
     public Set<Square> getAllStableSquares() {
         Set<Square> prevTopSquares = getBottomBlocks();
         Set<Square> stableBlocks = new HashSet<>(prevTopSquares);
@@ -94,7 +93,7 @@ public class GridSpaceEvaluator {
     }
 
 
-    /* Checks if the locations of the squares are not occupied*/
+    /** Checks if the locations of the squares are not occupied*/
     public boolean squareLocationsAreEmpty(List<Square> squares) {
         return Stream.of(squares).allMatch(s -> isEmptyGridPoint.test(s.location));
     }
@@ -132,6 +131,11 @@ public class GridSpaceEvaluator {
             return Optional.empty();
         else
             return grid[square.location.y-1][square.location.x];
+    }
+
+    private boolean isFilledRow(int row) {
+        Set<Square> stableSquares = getAllStableSquares();
+        return Stream.of(grid[row]).allMatch(optS -> optS.isPresent() && !optS.get().isShadowSquare() && stableSquares.contains(optS.get()));
     }
 
     private Set<Square> getBottomBlocks(){

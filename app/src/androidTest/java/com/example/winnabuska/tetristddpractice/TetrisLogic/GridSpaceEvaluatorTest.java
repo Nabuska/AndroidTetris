@@ -56,17 +56,14 @@ public class GridSpaceEvaluatorTest extends AndroidTestCase {
     }
 
     public void testIsFilledRow() throws Exception{
-        boolean isFull = evaluator.isFilledRow(bottomY);
-        assertFalse(isFull);
+        assertFalse(evaluator.getFilledRows().contains(bottomY));
         grid[bottomY][5] = Optional.of(new Square(new Point(5,bottomY), 1));
         grid[bottomY][0] = Optional.of(new Square(new Point(0,bottomY), 1));
         grid[bottomY][7] = Optional.of(new Square(new Point(7,bottomY), 1));
         grid[bottomY][8] = Optional.of(new Square(new Point(8, bottomY), 1));
-        isFull = evaluator.isFilledRow(bottomY);
-        assertFalse(isFull);
+        assertFalse(evaluator.getFilledRows().contains(bottomY));
         grid[bottomY][9] = Optional.of(new Square(new Point(9,bottomY), 1));
-        isFull = evaluator.isFilledRow(bottomY);
-        assertTrue(isFull);
+        assertTrue(evaluator.getFilledRows().contains(bottomY));
     }
 
     public void testGetAllStableBlocks_SingleNonAttachedSquares()throws Exception {
